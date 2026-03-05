@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="sv" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Förenkla uttryck</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── TOKENS ───────────────────────────────── */
+    :root {
+      --bg:            #f0f4ff;
+      --card:          #ffffff;
+      --expr-bg:       #f4f6ff;
+      --primary:       #3b5bdb;
+      --primary-light: #e7edff;
+      --success:       #2f9e44;
+      --success-light: #d3f9d8;
+      --error:         #c92a2a;
+      --error-light:   #ffe3e3;
+      --warn:          #e67700;
+      --warn-light:    #fff3bf;
+      --text:          #1a1a2e;
+      --muted:         #6c757d;
+      --border:        #dce3f5;
+      --shadow:        0 4px 24px rgba(59,91,219,.10);
+      --cx:  #3b5bdb; --cx-bg: #e7edff;
+      --cy:  #c2255c; --cy-bg: #ffe0f0;
+      --cc:  #2f9e44; --cc-bg: #d3f9d8;
+    }
+    [data-theme="dark"] {
+      --bg:            #0d0f1a;
+      --card:          #161929;
+      --expr-bg:       #0f1120;
+      --primary:       #5c7cfa;
+      --primary-light: #1e2540;
+      --success:       #40c057;
+      --success-light: #0b2112;
+      --error:         #fa5252;
+      --error-light:   #2a0b0b;
+      --warn:          #fcc419;
+      --warn-light:    #2a1f00;
+      --text:          #e4eaff;
+      --muted:         #8892b0;
+      --border:        #252a45;
+      --shadow:        0 4px 32px rgba(0,0,0,.45);
+      --cx:  #748ffc; --cx-bg: #1e2540;
+      --cy:  #f783ac; --cy-bg: #2e1525;
+      --cc:  #51cf66; --cc-bg: #0b2112;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { transition: background-color .25s, color .15s; }
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 20px 14px 80px;
+    }
+
+    /* ── TOP BAR ──────────────────────────────── */
+    .topbar {
+      display: flex; justify-content: flex-end; align-items: center;
+      max-width: 720px; margin: 0 auto 6px; gap: 8px;
+    }
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 2px solid var(--border); background: var(--card);
+      font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow);
+      transition: border-color .18s, transform .15s, background .25s;
+    }
+    .icon-btn:hover { border-color: var(--primary); transform: scale(1.08); }
+
+    /* ── HEADER ───────────────────────────────── */
+    header { text-align: center; margin-bottom: 20px; }
+    header h1 { font-size: 1.85rem; font-weight: 900; color: var(--primary); letter-spacing: -.5px; }
+    header p  { color: var(--muted); font-size: .95rem; margin-top: 3px; }
+
+    /* ── LEVEL BAR ────────────────────────────── */
+    .level-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .level-btn {
+      padding: 7px 18px; border-radius: 999px;
+      border: 2px solid var(--border); background: var(--card);
+      font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .88rem;
+      cursor: pointer; transition: all .18s; color: var(--muted);
+    }
+    .level-btn:hover  { border-color: var(--primary); color: var(--primary); }
+    .level-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 2px 10px rgba(59,91,219,.3); }
+
+    /* ── CARD ─────────────────────────────────── */
+    .card {
+      background: var(--card); border-radius: 20px; box-shadow: var(--shadow);
+      max-width: 720px; margin: 0 auto 16px; padding: 28px 30px;
+      transition: background .25s, box-shadow .25s;
+    }
+
+    .level-desc {
+      font-size: .83rem; color: var(--muted); margin-bottom: 18px;
+      padding: 9px 14px; background: var(--primary-light);
+      border-radius: 10px; border-left: 3px solid var(--primary);
+      transition: background .25s;
+    }
+
+    /* ── EXPRESSION ───────────────────────────── */
+    .expr-label { font-size: .75rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .expression-box {
+      background: var(--expr-bg); border: 2px solid var(--border);
+      border-radius: 14px; padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace; font-size: 1.45rem; font-weight: 700;
+      display: flex; align-items: center; min-height: 62px;
+      overflow-x: auto; white-space: nowrap;
+      transition: background .25s, border-color .2s;
+    }
+    .term { display: inline; padding: 2px 3px; border-radius: 5px; transition: background .25s, color .2s; cursor: default; }
+    .term.hx { background: var(--cx-bg); color: var(--cx); }
+    .term.hy { background: var(--cy-bg); color: var(--cy); }
+    .term.hc { background: var(--cc-bg); color: var(--cc); }
+
+    /* ── TOOLBAR ──────────────────────────────── */
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .pill-btn {
+      padding: 6px 16px; border-radius: 999px;
+      border: 2px solid var(--border); background: var(--card);
+      font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .82rem;
+      cursor: pointer; color: var(--muted); transition: all .18s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .pill-btn:hover  { border-color: var(--primary); color: var(--primary); }
+    .pill-btn.active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+    .legend { display: none; gap: 12px; flex-wrap: wrap; }
+    .legend.visible { display: flex; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: .82rem; font-weight: 700; }
+    .ldot { width: 13px; height: 13px; border-radius: 4px; }
+    .ldot.x { background: var(--cx-bg); border: 2px solid var(--cx); }
+    .ldot.y { background: var(--cy-bg); border: 2px solid var(--cy); }
+    .ldot.c { background: var(--cc-bg); border: 2px solid var(--cc); }
+
+    /* ── INPUT ────────────────────────────────── */
+    .input-section { margin-top: 24px; }
+    .input-label { font-size: .75rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .input-row { display: flex; gap: 9px; align-items: center; }
+    .answer-input {
+      flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 700;
+      padding: 11px 16px; border-radius: 12px; border: 2px solid var(--border);
+      outline: none; background: var(--expr-bg); color: var(--text);
+      transition: border-color .2s, box-shadow .2s, background .25s;
+    }
+    .answer-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,91,219,.13); }
+    .answer-input.ok  { border-color: var(--success); background: var(--success-light); }
+    .answer-input.err { border-color: var(--error);   background: var(--error-light); }
+
+    .check-btn {
+      padding: 11px 22px; background: var(--primary); color: #fff;
+      border: none; border-radius: 12px;
+      font-family: 'Nunito', sans-serif; font-weight: 800; font-size: .95rem;
+      cursor: pointer; transition: background .18s, transform .1s; white-space: nowrap;
+    }
+    .check-btn:hover  { background: #2f4ac9; }
+    .check-btn:active { transform: scale(.97); }
+
+    .format-hint { margin-top: 7px; font-size: .78rem; color: var(--muted); }
+    .format-hint code { background: var(--primary-light); color: var(--primary); padding: 1px 5px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+
+    /* ── FEEDBACK ─────────────────────────────── */
+    .feedback {
+      margin-top: 12px; padding: 11px 16px; border-radius: 10px;
+      font-weight: 700; font-size: .93rem; display: none; align-items: center; gap: 8px;
+    }
+    .feedback.show  { display: flex; }
+    .feedback.ok    { background: var(--success-light); color: var(--success); }
+    .feedback.err   { background: var(--error-light);   color: var(--error); }
+    .feedback.parse { background: var(--warn-light);    color: var(--warn); }
+
+    /* ── ACTIONS ──────────────────────────────── */
+    .action-row { margin-top: 18px; display: flex; gap: 9px; flex-wrap: wrap; }
+    .next-btn {
+      padding: 10px 24px; background: var(--success); color: #fff; border: none;
+      border-radius: 12px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: .95rem;
+      cursor: pointer; display: none; transition: background .18s;
+    }
+    .next-btn.show  { display: block; }
+    .next-btn:hover { background: #258635; }
+    .new-btn {
+      padding: 10px 20px; background: var(--card); color: var(--primary);
+      border: 2px solid var(--primary); border-radius: 12px;
+      font-family: 'Nunito', sans-serif; font-weight: 800; font-size: .95rem;
+      cursor: pointer; transition: all .18s;
+    }
+    .new-btn:hover { background: var(--primary-light); }
+    .show-sol-btn {
+      padding: 10px 20px; background: var(--card); color: var(--muted);
+      border: 2px solid var(--border); border-radius: 12px;
+      font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .9rem;
+      cursor: pointer; display: none; transition: all .18s;
+    }
+    .show-sol-btn.show  { display: block; }
+    .show-sol-btn:hover { border-color: var(--warn); color: var(--warn); }
+
+    /* ── SOLUTION PANEL ───────────────────────── */
+    .solution-panel {
+      margin-top: 16px; padding: 18px 20px;
+      background: var(--warn-light); border-radius: 14px; border: 2px solid var(--warn);
+      display: none; flex-direction: column; gap: 10px; transition: background .25s;
+    }
+    .solution-panel.show { display: flex; }
+    .sol-title { font-size: .75rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--warn); margin-bottom: 2px; }
+    .sol-step  { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--card); font-size: .92rem; transition: background .25s; }
+    .sol-num   { width: 22px; height: 22px; border-radius: 50%; background: var(--warn); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 900; flex-shrink: 0; margin-top: 1px; }
+    .sol-text  { line-height: 1.55; }
+    .sol-text .mono { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: .95rem; }
+    .sol-text .mono .hx { color: var(--cx); }
+    .sol-text .mono .hy { color: var(--cy); }
+    .sol-text .mono .hc { color: var(--cc); }
+
+    /* ── SCORE CARD ───────────────────────────── */
+    .score-card {
+      background: var(--card); border-radius: 20px; box-shadow: var(--shadow);
+      max-width: 720px; margin: 0 auto; padding: 18px 28px;
+      display: flex; gap: 0; align-items: center; flex-wrap: wrap;
+      transition: background .25s, box-shadow .25s;
+    }
+    .score-item { text-align: center; flex: 1; min-width: 70px; padding: 4px; }
+    .score-item h2 { font-size: .7rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .score-num { font-size: 1.75rem; font-weight: 900; }
+    .score-num.g { color: var(--success); }
+    .score-num.r { color: var(--error); }
+    .score-num.b { color: var(--primary); }
+    .score-div { width: 1px; height: 48px; background: var(--border); flex-shrink: 0; }
+    .reset-btn {
+      margin-left: auto; padding: 7px 16px; border-radius: 999px;
+      border: 2px solid var(--border); background: var(--card);
+      font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .82rem;
+      cursor: pointer; color: var(--muted); transition: all .18s;
+    }
+    .reset-btn:hover { border-color: var(--error); color: var(--error); }
+
+    /* ── SETTINGS MODAL ───────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(3px);
+      z-index: 200; display: none; align-items: center; justify-content: center;
+    }
+    .overlay.show { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 20px; padding: 28px 30px;
+      max-width: 480px; width: 92%; box-shadow: 0 16px 60px rgba(0,0,0,.3);
+      transition: background .25s; max-height: 90vh; overflow-y: auto;
+    }
+    .modal h2  { font-size: 1.2rem; font-weight: 900; margin-bottom: 4px; }
+    .modal-sub { font-size: .85rem; color: var(--muted); margin-bottom: 22px; }
+    .sg        { margin-bottom: 20px; }
+    .sg > label { display: block; font-weight: 800; font-size: .88rem; margin-bottom: 4px; }
+    .sg .sdesc  { font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+
+    .trow {
+      display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px;
+      border-radius: 10px; border: 2px solid var(--border); background: var(--expr-bg);
+      margin-bottom: 8px; cursor: pointer; transition: border-color .18s, background .25s;
+    }
+    .trow:hover   { border-color: var(--primary); }
+    .trow.active  { border-color: var(--primary); background: var(--primary-light); }
+    .trow-check {
+      width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border);
+      background: var(--card); flex-shrink: 0; margin-top: 2px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem; font-weight: 900; color: #fff; transition: all .18s;
+    }
+    .trow.active .trow-check { background: var(--primary); border-color: var(--primary); }
+    .trow-label { font-weight: 700; font-size: .88rem; }
+    .trow-desc  { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+
+    .range-row { display: flex; align-items: center; gap: 12px; }
+    .range-row input[type=range] { flex: 1; accent-color: var(--primary); }
+    .range-val { min-width: 28px; text-align: center; font-weight: 800; color: var(--primary); font-size: .95rem; }
+
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+    .btn-cancel {
+      padding: 9px 20px; border-radius: 10px; border: 2px solid var(--border); background: var(--card);
+      font-family: 'Nunito', sans-serif; font-weight: 700; cursor: pointer; color: var(--muted); transition: all .18s;
+    }
+    .btn-save {
+      padding: 9px 24px; border-radius: 10px; background: var(--primary); color: #fff; border: none;
+      font-family: 'Nunito', sans-serif; font-weight: 800; cursor: pointer; transition: background .18s;
+    }
+    .btn-save:hover { background: #2f4ac9; }
+
+    @media (max-width: 500px) {
+      .card { padding: 20px 16px; }
+      .expression-box { font-size: 1.2rem; }
+      .answer-input   { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="icon-btn" id="settingsBtn" title="Lärare – inställningar">⚙️</button>
+  <button class="icon-btn" id="themeBtn"    title="Växla tema">🌙</button>
+</div>
+
+<header>
+  <h1>✏️ Förenkla uttrycket</h1>
+  <p>Samla ihop likadana termer och skriv ett förenklat svar</p>
+</header>
+
+<div class="level-bar" id="levelBar">
+  <button class="level-btn active" data-level="1">Nivå 1</button>
+  <button class="level-btn"        data-level="2">Nivå 2</button>
+  <button class="level-btn"        data-level="3">Nivå 3</button>
+  <button class="level-btn"        data-level="4">Nivå 4</button>
+</div>
+
+<div class="card">
+  <div class="level-desc" id="levelDesc"></div>
+
+  <div class="expr-label">Uttrycket att förenkla</div>
+  <div class="expression-box" id="exprBox"></div>
+
+  <div class="toolbar">
+    <button class="pill-btn" id="colorBtn">🎨 Färgkoda termer</button>
+    <div class="legend" id="legend">
+      <div class="legend-item"><div class="ldot x"></div> x-termer</div>
+      <div class="legend-item" id="legendY" style="display:none"><div class="ldot y"></div> y-termer</div>
+      <div class="legend-item"><div class="ldot c"></div> konstanter</div>
+    </div>
+  </div>
+
+  <div class="input-section">
+    <div class="input-label">Ditt svar</div>
+    <div class="input-row">
+      <input class="answer-input" id="answerInput" type="text"
+             placeholder="t.ex.  2x + 3" autocomplete="off" spellcheck="false"/>
+      <button class="check-btn" id="checkBtn">Kontrollera ✓</button>
+    </div>
+    <div class="format-hint">
+      Skriv t.ex. <code>3x + 5</code> eller <code>2x − 4y + 1</code>
+      &nbsp;·&nbsp; Använd <code>-</code> för negativa termer
+    </div>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="action-row">
+    <button class="next-btn"     id="nextBtn">Nästa uppgift →</button>
+    <button class="show-sol-btn" id="showSolBtn">💡 Visa lösning</button>
+    <button class="new-btn"      id="newBtn">Ny uppgift 🔀</button>
+  </div>
+
+  <div class="solution-panel" id="solutionPanel"></div>
+</div>
+
+<div class="score-card">
+  <div class="score-item"><h2>Rätt</h2><div class="score-num g" id="sRight">0</div></div>
+  <div class="score-div"></div>
+  <div class="score-item"><h2>Fel</h2><div class="score-num r" id="sWrong">0</div></div>
+  <div class="score-div"></div>
+  <div class="score-item"><h2>Totalt</h2><div class="score-num b" id="sTotal">0</div></div>
+  <button class="reset-btn" id="resetBtn">Nollställ</button>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>⚙️ Lärare – inställningar</h2>
+    <p class="modal-sub">Anpassa vilka nivåer och intervall eleverna arbetar med.</p>
+
+    <div class="sg">
+      <label>Aktiva nivåer</label>
+      <p class="sdesc">Avmarkera nivåer som inte ska visas för eleverna.</p>
+      <div class="trow active" data-lv="1">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 1 – En variabel (x), bara positiva koefficienter</div>
+             <div class="trow-desc">4–6 termer med x och konstanter</div></div>
+      </div>
+      <div class="trow active" data-lv="2">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 2 – Två variabler (x och y)</div>
+             <div class="trow-desc">5–8 termer, negativa koefficienter tillåts</div></div>
+      </div>
+      <div class="trow active" data-lv="3">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 3 – Parentes med positiv faktor</div>
+             <div class="trow-desc">t.ex. 2(3x + 4) − x + 1, inget teckenbyte</div></div>
+      </div>
+      <div class="trow active" data-lv="4">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 4 – Parentes med negativ faktor</div>
+             <div class="trow-desc">t.ex. −(2x − 3) + 4x, kräver teckenbyte</div></div>
+      </div>
+    </div>
+
+    <div class="sg">
+      <label>Koefficient-intervall (max absolut värde)</label>
+      <p class="sdesc">Styr hur stora talen i uppgifterna kan bli.</p>
+      <div class="range-row">
+        <span style="font-size:.85rem;color:var(--muted)">1</span>
+        <input type="range" id="coeffRange" min="2" max="12" value="9"/>
+        <span style="font-size:.85rem;color:var(--muted)">12</span>
+        <div class="range-val" id="coeffVal">9</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" id="mCancel">Avbryt</button>
+      <button class="btn-save"   id="mSave">Spara</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════
+let cfg = { activeLevels:[1,2,3,4], maxCoeff:9 };
+let pending = null;
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let level=1, terms=[], answer={}, hl=false, done=false, sR=0, sW=0;
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const rndNZ=(a,b)=>{let v;do{v=rnd(a,b);}while(!v);return v;};
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+// ═══════════════════════════════════════════
+//  GENERATORS
+// ═══════════════════════════════════════════
+const M=()=>cfg.maxCoeff;
+
+function genL1(){
+  const n=rnd(4,6), nX=rnd(2,Math.min(4,n-1)), nC=n-nX, t=[];
+  for(let i=0;i<nX;i++) t.push({coeff:rnd(1,M()),varType:'x'});
+  for(let i=0;i<nC;i++) t.push({coeff:rnd(1,M()),varType:''});
+  return shuf(t);
+}
+function genL2(){
+  const t=[];
+  for(let i=0;i<rnd(2,3);i++) t.push({coeff:rndNZ(-M(),M()),varType:'x'});
+  for(let i=0;i<rnd(2,3);i++) t.push({coeff:rndNZ(-M(),M()),varType:'y'});
+  for(let i=0;i<rnd(1,2);i++) t.push({coeff:rndNZ(-M(),M()),varType:''});
+  return shuf(t);
+}
+function genParen(f){
+  // f = factor (positive for L3, negative for L4)
+  const a=rndNZ(1,5), b=rndNZ(1,6)*(Math.random()<.5?1:-1);
+  const free=[];
+  for(let i=0;i<rnd(1,2);i++) free.push({coeff:rndNZ(-M(),M()),varType:'x'});
+  for(let i=0;i<rnd(1,2);i++) free.push({coeff:rndNZ(-M(),M()),varType:''});
+  const p1={coeff:f*a,varType:'x',pFactor:f,pFirst:true};
+  const p2={coeff:f*b,varType:'',pClose:true};
+  free.splice(rnd(0,free.length),0,p1,p2);
+  return free;
+}
+const genL3=()=>genParen(rnd(2,4));
+const genL4=()=>genParen(-rnd(1,3));
+
+function calcAnswer(ts){
+  let x=0,y=0,c=0;
+  ts.forEach(t=>{
+    if(t.varType==='x') x+=t.coeff;
+    else if(t.varType==='y') y+=t.coeff;
+    else c+=t.coeff;
+  });
+  return {x,y,c};
+}
+
+function newProblem(){
+  hl=false; done=false;
+  if(level===1) terms=genL1();
+  else if(level===2) terms=genL2();
+  else if(level===3) terms=genL3();
+  else terms=genL4();
+  answer=calcAnswer(terms);
+  renderExpr();
+  clearUI();
+}
+
+// ═══════════════════════════════════════════
+//  RENDER EXPRESSION
+// ═══════════════════════════════════════════
+function getHL(t){ if(!hl) return ''; return t.varType==='x'?'hx':t.varType==='y'?'hy':'hc'; }
+function fmtInner(raw,vt){
+  const a=Math.abs(raw);
+  return vt===''?String(a):(a===1?vt:a+vt);
+}
+function fmtOuter(abs,vt){
+  return vt===''?String(abs):(abs===1?vt:abs+vt);
+}
+
+function renderExpr(){
+  const box=document.getElementById('exprBox');
+  let html='', pF=null, idx=0;
+
+  for(let i=0;i<terms.length;i++){
+    const t=terms[i];
+    if(t.pFirst){
+      pF=t.pFactor;
+      const af=Math.abs(pF);
+      const fs=i===0?(pF<0?'−':''):(pF<0?' − ':' + ');
+      const fStr=af===1?'':String(af);
+      html+=`<span class="term">${fs}${fStr}(</span>`;
+      const rawA=t.coeff/pF;
+      html+=`<span class="term ${getHL(t)}">${rawA<0?'−':''}${fmtInner(rawA,t.varType)}</span>`;
+      idx++;
+    } else if(t.pClose){
+      const rawB=t.coeff/pF;
+      html+=`<span class="term ${getHL(t)}">${rawB<0?' − ':' + '}${fmtInner(rawB,t.varType)}</span>`;
+      html+=`<span class="term">)</span>`;
+      pF=null; idx++;
+    } else {
+      const abs=Math.abs(t.coeff);
+      const sep=idx===0?(t.coeff<0?'−':''):(t.coeff<0?' − ':' + ');
+      html+=`<span class="term ${getHL(t)}">${sep}${fmtOuter(abs,t.varType)}</span>`;
+      idx++;
+    }
+  }
+  box.innerHTML=html;
+
+  const legend=document.getElementById('legend');
+  const cBtn=document.getElementById('colorBtn');
+  const lY=document.getElementById('legendY');
+  if(hl){
+    legend.classList.add('visible'); cBtn.classList.add('active');
+    cBtn.textContent='🎨 Dölj färgkodning';
+    lY.style.display=level>=2?'flex':'none';
+  } else {
+    legend.classList.remove('visible'); cBtn.classList.remove('active');
+    cBtn.textContent='🎨 Färgkoda termer';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  SOLUTION BUILDER
+// ═══════════════════════════════════════════
+function fmtT(coeff,vt){
+  const a=Math.abs(coeff), neg=coeff<0, v=vt||'';
+  const c=(a===1&&v!=='')?'':String(a);
+  return (neg?'−':'')+c+v;
+}
+function buildAnsStr(x,y,c){
+  const pts=[];
+  if(x!==0) pts.push({v:x,vt:'x',cls:'hx'});
+  if(y!==0) pts.push({v:y,vt:'y',cls:'hy'});
+  if(c!==0) pts.push({v:c,vt:'',cls:'hc'});
+  if(!pts.length) return '0';
+  return pts.map((p,i)=>{
+    const a=Math.abs(p.v), v=p.vt;
+    const cs=(a===1&&v!=='')?'':String(a);
+    const sep=i===0?(p.v<0?'−':''):(p.v<0?' − ':' + ');
+    return `<span class="${p.cls}">${sep}${cs}${v}</span>`;
+  }).join('');
+}
+function buildSolution(){
+  const {x,y,c}=answer;
+  const steps=[];
+  const hasParen=terms.some(t=>t.pFirst||t.pClose);
+  if(hasParen){
+    const pf=terms.find(t=>t.pFirst).pFactor;
+    const sign=pf<0?'negativ':'positiv';
+    steps.push({t:'Multiplicera ut parentesen',
+      b:`Faktorn är <b>${pf}</b> (${sign}). Multiplicera med varje term inuti parentesen${pf<0?' – kom ihåg teckenbyte':''}.`});
+  }
+  steps.push({t:'Identifiera likadana termer',
+    b:`Markera termer av samma typ: <span class="mono"><span class="hx">x-termer</span>${level>=2?', <span class="hy">y-termer</span>':''}, <span class="hc">konstanter</span></span>`});
+
+  const xT=terms.filter(t=>t.varType==='x');
+  const yT=terms.filter(t=>t.varType==='y');
+  const cT=terms.filter(t=>t.varType==='');
+
+  if(xT.length>1){
+    const pp=xT.map(t=>{const a=Math.abs(t.coeff);return `(${t.coeff<0?'−':'+'}${a===1?'x':a+'x'})`;}).join(' ');
+    steps.push({t:'Samla x-termerna',
+      b:`<span class="mono"><span class="hx">${pp} = ${x===0?'0':fmtT(x,'x')}</span></span>`});
+  }
+  if(yT.length>1){
+    const pp=yT.map(t=>{const a=Math.abs(t.coeff);return `(${t.coeff<0?'−':'+'}${a===1?'y':a+'y'})`;}).join(' ');
+    steps.push({t:'Samla y-termerna',
+      b:`<span class="mono"><span class="hy">${pp} = ${y===0?'0':fmtT(y,'y')}</span></span>`});
+  }
+  if(cT.length>1){
+    const pp=cT.map(t=>`(${t.coeff<0?'−':'+'}${Math.abs(t.coeff)})`).join(' ');
+    steps.push({t:'Samla konstanterna',
+      b:`<span class="mono"><span class="hc">${pp} = ${c===0?'0':fmtT(c,'')}</span></span>`});
+  }
+  steps.push({t:'Förenklat svar',b:`<span class="mono">${buildAnsStr(x,y,c)}</span>`});
+
+  let h=`<div class="sol-title">Steg för steg</div>`;
+  steps.forEach((s,i)=>{
+    h+=`<div class="sol-step"><div class="sol-num">${i+1}</div>
+        <div class="sol-text"><b>${s.t}</b><br>${s.b}</div></div>`;
+  });
+  return h;
+}
+
+// ═══════════════════════════════════════════
+//  PARSE & CHECK
+// ═══════════════════════════════════════════
+function parseAns(raw){
+  let s=raw.trim().replace(/[−–]/g,'-').replace(/\s+/g,'').toLowerCase();
+  if(!s||s==='0') return {x:0,y:0,c:0,ok:true};
+  if(s[0]!=='-') s='+'+s;
+  const toks=s.match(/[+-][^+-]+/g);
+  if(!toks) return {ok:false};
+  const res={x:0,y:0,c:0,ok:true}; let found=false;
+  for(const tok of toks){
+    const m=tok.match(/^([+-])(\d*)(x|y)?$/);
+    if(!m) return {ok:false};
+    const sg=m[1]==='-'?-1:1, dg=m[2], va=m[3]||'';
+    if(!dg&&!va) return {ok:false};
+    let co=dg?parseInt(dg,10):1; co*=sg;
+    if(va==='x') res.x+=co; else if(va==='y') res.y+=co; else res.c+=co;
+    found=true;
+  }
+  res.ok=found; return res;
+}
+
+function checkAnswer(){
+  if(done) return;
+  const raw=document.getElementById('answerInput').value;
+  const p=parseAns(raw);
+  const fb=document.getElementById('feedback');
+  const inp=document.getElementById('answerInput');
+  const nBtn=document.getElementById('nextBtn');
+  const sBtn=document.getElementById('showSolBtn');
+
+  if(!p.ok){
+    fb.className='feedback show parse';
+    fb.innerHTML='⚠️ Kunde inte tolka svaret. Skriv t.ex. <code style="background:var(--warn-light);padding:1px 5px;border-radius:4px">2x + 3</code>';
+    return;
+  }
+  const ok=p.x===answer.x&&p.y===answer.y&&p.c===answer.c;
+  done=true;
+  if(ok){
+    sR++;
+    inp.classList.add('ok');
+    fb.className='feedback show ok';
+    fb.innerHTML='✅ Rätt svar! Bra jobbat!';
+  } else {
+    sW++;
+    inp.classList.add('err');
+    fb.className='feedback show err';
+    const wr=[];
+    if(p.x!==answer.x) wr.push('x-termerna');
+    if(p.y!==answer.y) wr.push('y-termerna');
+    if(p.c!==answer.c) wr.push('konstanterna');
+    fb.innerHTML='❌ Inte riktigt – kontrollera '+wr.join(', ')+'.';
+    sBtn.classList.add('show');
+  }
+  nBtn.classList.add('show');
+  updateScore();
+}
+
+// ═══════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════
+function clearUI(){
+  const inp=document.getElementById('answerInput');
+  inp.value=''; inp.classList.remove('ok','err');
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('nextBtn').classList.remove('show');
+  document.getElementById('showSolBtn').classList.remove('show');
+  const sp=document.getElementById('solutionPanel');
+  sp.classList.remove('show'); sp.innerHTML='';
+  document.getElementById('showSolBtn').textContent='💡 Visa lösning';
+  document.getElementById('colorBtn').classList.remove('active');
+  document.getElementById('legend').classList.remove('visible');
+  document.getElementById('colorBtn').textContent='🎨 Färgkoda termer';
+  inp.focus();
+}
+function updateScore(){
+  document.getElementById('sRight').textContent=sR;
+  document.getElementById('sWrong').textContent=sW;
+  document.getElementById('sTotal').textContent=sR+sW;
+}
+
+const DESCS={
+  1:'Nivå 1 – Förenkla uttryck med x-termer och konstanter. Alla koefficienter är positiva.',
+  2:'Nivå 2 – Förenkla uttryck med x-termer, y-termer och konstanter. Negativa koefficienter kan förekomma.',
+  3:'Nivå 3 – Uttrycket innehåller en parentes med positiv faktor. Multiplicera ut och förenkla.',
+  4:'Nivå 4 – Uttrycket innehåller en parentes med negativ faktor. Tänk på teckenbyte!'
+};
+
+// ═══════════════════════════════════════════
+//  SETTINGS MODAL
+// ═══════════════════════════════════════════
+function openModal(){
+  pending=JSON.parse(JSON.stringify(cfg));
+  document.querySelectorAll('.trow[data-lv]').forEach(r=>{
+    const lv=parseInt(r.dataset.lv), on=pending.activeLevels.includes(lv);
+    r.classList.toggle('active',on);
+    r.querySelector('.trow-check').textContent=on?'✓':'';
+  });
+  document.getElementById('coeffRange').value=pending.maxCoeff;
+  document.getElementById('coeffVal').textContent=pending.maxCoeff;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+function saveModal(){
+  cfg=JSON.parse(JSON.stringify(pending));
+  document.querySelectorAll('.level-btn').forEach(b=>{
+    b.style.display=cfg.activeLevels.includes(parseInt(b.dataset.level))?'':'none';
+  });
+  if(!cfg.activeLevels.includes(level)){
+    const first=document.querySelector('.level-btn:not([style*="none"])');
+    if(first) first.click(); else newProblem();
+  } else { newProblem(); }
+  closeModal();
+}
+
+// ═══════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════
+document.querySelectorAll('.level-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    level=parseInt(btn.dataset.level);
+    document.getElementById('levelDesc').textContent=DESCS[level];
+    newProblem();
+  });
+});
+
+document.getElementById('colorBtn').addEventListener('click',()=>{ hl=!hl; renderExpr(); });
+document.getElementById('checkBtn').addEventListener('click',checkAnswer);
+document.getElementById('newBtn').addEventListener('click',newProblem);
+document.getElementById('nextBtn').addEventListener('click',newProblem);
+document.getElementById('answerInput').addEventListener('keydown',e=>{ if(e.key==='Enter') checkAnswer(); });
+
+document.getElementById('showSolBtn').addEventListener('click',()=>{
+  const sp=document.getElementById('solutionPanel');
+  const sb=document.getElementById('showSolBtn');
+  if(sp.classList.contains('show')){
+    sp.classList.remove('show'); sb.textContent='💡 Visa lösning';
+  } else {
+    sp.innerHTML=buildSolution(); sp.classList.add('show');
+    sb.textContent='🙈 Dölj lösning';
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{ sR=0;sW=0;updateScore(); });
+
+let dark=false;
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  dark=!dark;
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  document.getElementById('themeBtn').textContent=dark?'☀️':'🌙';
+});
+
+document.getElementById('settingsBtn').addEventListener('click',openModal);
+document.getElementById('mCancel').addEventListener('click',closeModal);
+document.getElementById('mSave').addEventListener('click',saveModal);
+document.getElementById('overlay').addEventListener('click',e=>{ if(e.target===document.getElementById('overlay')) closeModal(); });
+
+document.querySelectorAll('.trow[data-lv]').forEach(r=>{
+  r.addEventListener('click',()=>{
+    const lv=parseInt(r.dataset.lv);
+    const idx=pending.activeLevels.indexOf(lv);
+    if(idx>=0&&pending.activeLevels.length===1) return; // keep at least one
+    if(idx>=0){ pending.activeLevels.splice(idx,1); r.classList.remove('active'); r.querySelector('.trow-check').textContent=''; }
+    else { pending.activeLevels.push(lv); pending.activeLevels.sort(); r.classList.add('active'); r.querySelector('.trow-check').textContent='✓'; }
+  });
+});
+
+document.getElementById('coeffRange').addEventListener('input',e=>{
+  const v=parseInt(e.target.value);
+  document.getElementById('coeffVal').textContent=v;
+  if(pending) pending.maxCoeff=v;
+});
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+document.getElementById('levelDesc').textContent=DESCS[1];
+newProblem();
+</script>
+</body>
+</html>
