@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="sv" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Förenkla uttryck</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── DESIGN TOKENS ─────────────────────────── */
+    :root {
+      --bg:#f0f4ff; --card:#fff; --expr-bg:#f4f6ff;
+      --primary:#3b5bdb; --primary-light:#e7edff;
+      --success:#2f9e44; --success-light:#d3f9d8;
+      --error:#c92a2a;   --error-light:#ffe3e3;
+      --warn:#e67700;    --warn-light:#fff3bf;
+      --text:#1a1a2e; --muted:#6c757d; --border:#dce3f5;
+      --shadow:0 4px 24px rgba(59,91,219,.10);
+      --cx:#3b5bdb; --cx-bg:#e7edff;
+      --cy:#c2255c; --cy-bg:#ffe0f0;
+      --cz:#5c940d; --cz-bg:#e9fac8;
+      --cc:#2f9e44; --cc-bg:#d3f9d8;
+      --cq:#6741d9; --cq-bg:#f3d9fa;   /* compound/power terms */
+      --dist-color:#f76707; --dist-bg:#fff4e6;   /* distribution highlight */
+    }
+    [data-theme="dark"] {
+      --bg:#0d0f1a; --card:#161929; --expr-bg:#0f1120;
+      --primary:#5c7cfa; --primary-light:#1e2540;
+      --success:#40c057; --success-light:#0b2112;
+      --error:#fa5252;   --error-light:#2a0b0b;
+      --warn:#fcc419;    --warn-light:#2a1f00;
+      --text:#e4eaff; --muted:#8892b0; --border:#252a45;
+      --shadow:0 4px 32px rgba(0,0,0,.45);
+      --cx:#748ffc; --cx-bg:#1e2540;
+      --cy:#f783ac; --cy-bg:#2e1525;
+      --cz:#a9e34b; --cz-bg:#1e2d05;
+      --cc:#51cf66; --cc-bg:#0b2112;
+      --cq:#da77f2; --cq-bg:#2a1040;
+      --dist-color:#ff922b; --dist-bg:#2a1500;
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{transition:background-color .25s,color .15s;}
+    body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px 14px 80px;}
+
+    /* ── TOP BAR ──────────────────────────────── */
+    .topbar{display:flex;justify-content:flex-end;max-width:720px;margin:0 auto 6px;gap:8px;}
+    .icon-btn{width:40px;height:40px;border-radius:50%;border:2px solid var(--border);background:var(--card);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);transition:border-color .18s,transform .15s,background .25s;}
+    .icon-btn:hover{border-color:var(--primary);transform:scale(1.08);}
+
+    /* ── HEADER ───────────────────────────────── */
+    header{text-align:center;margin-bottom:20px;}
+    header h1{font-size:1.85rem;font-weight:900;color:var(--primary);letter-spacing:-.5px;}
+    header p{color:var(--muted);font-size:.95rem;margin-top:3px;}
+
+    /* ── LEVEL BAR ────────────────────────────── */
+    .level-bar{display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+    .level-btn{padding:7px 16px;border-radius:999px;border:2px solid var(--border);background:var(--card);font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;transition:all .18s;color:var(--muted);}
+    .level-btn:hover{border-color:var(--primary);color:var(--primary);}
+    .level-btn.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 2px 10px rgba(59,91,219,.3);}
+
+    /* ── CARD ─────────────────────────────────── */
+    .card{background:var(--card);border-radius:20px;box-shadow:var(--shadow);max-width:720px;margin:0 auto 16px;padding:28px 30px;transition:background .25s,box-shadow .25s;}
+
+    /* ── STEP INDICATOR ───────────────────────── */
+    .step-indicator{display:none;align-items:center;margin-bottom:18px;border-radius:12px;overflow:hidden;border:2px solid var(--border);}
+    .step-indicator.visible{display:flex;}
+    .step-pip{flex:1;padding:9px 12px;font-size:.82rem;font-weight:800;text-align:center;background:var(--expr-bg);color:var(--muted);transition:background .2s,color .2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+    .step-pip.active  {background:var(--primary);color:#fff;}
+    .step-pip.done-pip{background:var(--success-light);color:var(--success);}
+    .step-divider{width:2px;background:var(--border);align-self:stretch;flex-shrink:0;}
+
+    /* ── LEVEL DESC ───────────────────────────── */
+    .level-desc{font-size:.83rem;color:var(--muted);margin-bottom:18px;padding:9px 14px;background:var(--primary-light);border-radius:10px;border-left:3px solid var(--primary);transition:background .25s;}
+
+    /* ── EXPRESSION AREA ──────────────────────── */
+    .expr-label{font-size:.75rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+    .expression-box{
+      background:var(--expr-bg);border:2px solid var(--border);border-radius:14px;
+      padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:1.45rem;font-weight:700;
+      display:flex;align-items:center;min-height:62px;overflow-x:auto;white-space:nowrap;
+      transition:background .25s,border-color .2s;
+    }
+    .term{display:inline;padding:2px 4px;border-radius:5px;transition:background .25s,color .2s;cursor:default;}
+    .term.hx{background:var(--cx-bg);color:var(--cx);}
+    .term.hy{background:var(--cy-bg);color:var(--cy);}
+    .term.hz{background:var(--cz-bg);color:var(--cz);}
+    .term.hc{background:var(--cc-bg);color:var(--cc);}
+    .term.hq{background:var(--cq-bg);color:var(--cq);}  /* compound/power */
+    /* Distribution highlight: factor gets outline, inner terms get warm bg */
+    .term.dist-factor{background:var(--dist-bg);color:var(--dist-color);outline:2px solid var(--dist-color);border-radius:5px;}
+    .term.dist-inner {background:var(--dist-bg);color:var(--dist-color);}
+
+    /* Step-2 row slides in below original */
+    .step2-row{display:none;align-items:center;gap:10px;margin-top:8px;opacity:0;transform:translateY(-5px);transition:opacity .3s ease,transform .3s ease;}
+    .step2-row.show   {display:flex;}
+    .step2-row.animate{opacity:1;transform:translateY(0);}
+    .step2-equals{font-family:'JetBrains Mono',monospace;font-size:1.45rem;font-weight:700;color:var(--muted);flex-shrink:0;}
+    .step2-box{
+      flex:1;background:var(--expr-bg);border:2px solid var(--success);border-radius:14px;
+      padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:1.45rem;font-weight:700;
+      overflow-x:auto;white-space:nowrap;transition:background .25s,border-color .2s;
+    }
+
+    /* ── TOOLBAR ──────────────────────────────── */
+    .toolbar{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+    .pill-btn{padding:6px 16px;border-radius:999px;border:2px solid var(--border);background:var(--card);font-family:'Nunito',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;color:var(--muted);transition:all .18s;display:flex;align-items:center;gap:5px;}
+    .pill-btn:hover {border-color:var(--primary);color:var(--primary);}
+    .pill-btn.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+    .pill-btn.dist-active{background:var(--dist-bg);border-color:var(--dist-color);color:var(--dist-color);}
+    .legend{display:none;gap:12px;flex-wrap:wrap;}
+    .legend.visible{display:flex;}
+    .legend-item{display:flex;align-items:center;gap:5px;font-size:.82rem;font-weight:700;}
+    .ldot{width:13px;height:13px;border-radius:4px;}
+    .ldot.x{background:var(--cx-bg);border:2px solid var(--cx);}
+    .ldot.y{background:var(--cy-bg);border:2px solid var(--cy);}
+    .ldot.z{background:var(--cz-bg);border:2px solid var(--cz);}
+    .ldot.c{background:var(--cc-bg);border:2px solid var(--cc);}
+    .ldot.q{background:var(--cq-bg);border:2px solid var(--cq);}
+
+    /* ── INPUT ────────────────────────────────── */
+    .input-section{margin-top:24px;}
+    .input-label{font-size:.75rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+    .input-row{display:flex;gap:9px;align-items:center;}
+    .answer-input{flex:1;font-family:'JetBrains Mono',monospace;font-size:1.15rem;font-weight:700;padding:11px 16px;border-radius:12px;border:2px solid var(--border);outline:none;background:var(--expr-bg);color:var(--text);transition:border-color .2s,box-shadow .2s,background .25s;}
+    .answer-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,91,219,.13);}
+    .answer-input.ok {border-color:var(--success);background:var(--success-light);}
+    .answer-input.err{border-color:var(--error);  background:var(--error-light);}
+    .check-btn{padding:11px 22px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem;cursor:pointer;transition:background .18s,transform .1s;white-space:nowrap;}
+    .check-btn:hover {background:#2f4ac9;}
+    .check-btn:active{transform:scale(.97);}
+    .format-hint{margin-top:7px;font-size:.78rem;color:var(--muted);}
+    .format-hint code{background:var(--primary-light);color:var(--primary);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;}
+
+    /* ── FEEDBACK ─────────────────────────────── */
+    .feedback{margin-top:12px;padding:11px 16px;border-radius:10px;font-weight:700;font-size:.93rem;display:none;align-items:center;gap:8px;}
+    .feedback.show {display:flex;}
+    .feedback.ok   {background:var(--success-light);color:var(--success);}
+    .feedback.err  {background:var(--error-light);  color:var(--error);}
+    .feedback.parse{background:var(--warn-light);   color:var(--warn);}
+
+    /* ── ACTIONS ──────────────────────────────── */
+    .action-row{margin-top:18px;display:flex;gap:9px;flex-wrap:wrap;}
+    .next-btn{padding:10px 24px;background:var(--success);color:#fff;border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem;cursor:pointer;display:none;transition:background .18s;}
+    .next-btn.show{display:block;}
+    .next-btn:hover{background:#258635;}
+    .new-btn{padding:10px 20px;background:var(--card);color:var(--primary);border:2px solid var(--primary);border-radius:12px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem;cursor:pointer;transition:all .18s;}
+    .new-btn:hover{background:var(--primary-light);}
+    .show-sol-btn{padding:10px 20px;background:var(--card);color:var(--muted);border:2px solid var(--border);border-radius:12px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;display:none;transition:all .18s;}
+    .show-sol-btn.show {display:block;}
+    .show-sol-btn:hover{border-color:var(--warn);color:var(--warn);}
+
+    /* ── SOLUTION PANEL ───────────────────────── */
+    .solution-panel{margin-top:16px;padding:18px 20px;background:var(--warn-light);border-radius:14px;border:2px solid var(--warn);display:none;flex-direction:column;gap:10px;transition:background .25s;}
+    .solution-panel.show{display:flex;}
+    .sol-title{font-size:.75rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--warn);margin-bottom:2px;}
+    .sol-step{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:10px;background:var(--card);font-size:.92rem;transition:background .25s;}
+    .sol-num{width:22px;height:22px;border-radius:50%;background:var(--warn);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:900;flex-shrink:0;margin-top:1px;}
+    .sol-text{line-height:1.55;}
+    .sol-text .mono{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.95rem;}
+    .sol-text .mono .hx{color:var(--cx);}
+    .sol-text .mono .hy{color:var(--cy);}
+    .sol-text .mono .hc{color:var(--cc);}
+
+    /* ── SCORE CARD ───────────────────────────── */
+    .score-card{background:var(--card);border-radius:20px;box-shadow:var(--shadow);max-width:720px;margin:0 auto;padding:18px 28px;display:flex;gap:0;align-items:center;flex-wrap:wrap;transition:background .25s,box-shadow .25s;}
+    .score-item{text-align:center;flex:1;min-width:70px;padding:4px;}
+    .score-item h2{font-size:.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+    .score-num{font-size:1.75rem;font-weight:900;}
+    .score-num.g{color:var(--success);}
+    .score-num.r{color:var(--error);}
+    .score-num.b{color:var(--primary);}
+    .score-div{width:1px;height:48px;background:var(--border);flex-shrink:0;}
+    .reset-btn{margin-left:auto;padding:7px 16px;border-radius:999px;border:2px solid var(--border);background:var(--card);font-family:'Nunito',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;color:var(--muted);transition:all .18s;}
+    .reset-btn:hover{border-color:var(--error);color:var(--error);}
+
+    /* ── SETTINGS MODAL ───────────────────────── */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center;}
+    .overlay.show{display:flex;}
+    .modal{background:var(--card);border-radius:20px;padding:28px 30px;max-width:500px;width:92%;box-shadow:0 16px 60px rgba(0,0,0,.3);transition:background .25s;max-height:90vh;overflow-y:auto;}
+    .modal h2{font-size:1.2rem;font-weight:900;margin-bottom:4px;}
+    .modal-sub{font-size:.85rem;color:var(--muted);margin-bottom:22px;}
+    .sg{margin-bottom:20px;}
+    .sg>label{display:block;font-weight:800;font-size:.88rem;margin-bottom:4px;}
+    .sg .sdesc{font-size:.8rem;color:var(--muted);margin-bottom:8px;}
+    .trow{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:10px;border:2px solid var(--border);background:var(--expr-bg);margin-bottom:8px;cursor:pointer;transition:border-color .18s,background .25s;}
+    .trow:hover{border-color:var(--primary);}
+    .trow.active{border-color:var(--primary);background:var(--primary-light);}
+    .trow-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:var(--card);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff;transition:all .18s;}
+    .trow.active .trow-check{background:var(--primary);border-color:var(--primary);}
+    .trow-label{font-weight:700;font-size:.85rem;}
+    .trow-desc{font-size:.76rem;color:var(--muted);margin-top:2px;}
+    .range-row{display:flex;align-items:center;gap:12px;}
+    .range-row input[type=range]{flex:1;accent-color:var(--primary);}
+    .range-val{min-width:28px;text-align:center;font-weight:800;color:var(--primary);font-size:.95rem;}
+    .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;}
+    .btn-cancel{padding:9px 20px;border-radius:10px;border:2px solid var(--border);background:var(--card);font-family:'Nunito',sans-serif;font-weight:700;cursor:pointer;color:var(--muted);transition:all .18s;}
+    .btn-save{padding:9px 24px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;transition:background .18s;}
+    .btn-save:hover{background:#2f4ac9;}
+
+    /* Distribution hint panel */
+    .dist-panel{
+      margin-top:10px; padding:12px 18px;
+      background:var(--dist-bg); border:2px solid var(--dist-color);
+      border-radius:12px; font-family:'JetBrains Mono',monospace;
+      font-size:1.15rem; font-weight:700; color:var(--dist-color);
+      line-height:1.7; transition:background .25s;
+    }
+    .dist-panel .dp-label{
+      font-family:'Nunito',sans-serif; font-size:.75rem; font-weight:800;
+      letter-spacing:1.4px; text-transform:uppercase;
+      color:var(--dist-color); margin-bottom:6px; display:block;
+    }
+    /* The invisible-1 highlight */
+    .ones-coeff{ color:var(--dist-color); }
+
+    @media(max-width:500px){.card{padding:20px 16px;}.expression-box,.step2-box{font-size:1.15rem;}.answer-input{font-size:1rem;}}
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="icon-btn" id="settingsBtn" title="Lärare – inställningar">⚙️</button>
+  <button class="icon-btn" id="themeBtn" title="Växla tema">🌙</button>
+</div>
+
+<header>
+  <h1>✏️ Förenkla uttrycket</h1>
+  <p>Samla ihop likadana termer och skriv ett förenklat svar</p>
+</header>
+
+<div class="level-bar" id="levelBar">
+  <button class="level-btn active" data-level="1">Nivå 1</button>
+  <button class="level-btn" data-level="2">Nivå 2</button>
+  <button class="level-btn" data-level="3">Nivå 3</button>
+  <button class="level-btn" data-level="4">Nivå 4</button>
+  <button class="level-btn" data-level="5">Nivå 5</button>
+  <button class="level-btn" data-level="6">Nivå 6</button>
+  <button class="level-btn" data-level="7">Nivå 7</button>
+  <button class="level-btn" data-level="8">Nivå 8</button>
+</div>
+
+<div class="card">
+
+  <div class="step-indicator" id="stepIndicator">
+    <div class="step-pip active" id="pip1">① Multiplicera ut</div>
+    <div class="step-divider"></div>
+    <div class="step-pip" id="pip2">② Förenkla</div>
+  </div>
+
+  <div class="level-desc" id="levelDesc"></div>
+
+  <div class="expr-label" id="exprLabel">Uttrycket att förenkla</div>
+  <div class="expression-box" id="exprBox"></div>
+
+  <!-- Step-2 row: original stays, expanded glides in below -->
+  <div class="step2-row" id="step2Row">
+    <div class="step2-equals">=</div>
+    <div class="step2-box" id="step2Box"></div>
+  </div>
+
+  <!-- Distribution hint panel (level 4 only) -->
+  <div class="dist-panel" id="distPanel" style="display:none"></div>
+
+  <div class="toolbar" id="toolbar">
+    <button class="pill-btn" id="colorBtn">🎨 Färgkoda termer</button>
+    <!-- Visa ettor – only level 1 -->
+    <button class="pill-btn" id="onesBtn" style="display:none">1️⃣ Visa osynliga ettor</button>
+    <!-- Distribution hint – only level 4 step 1 -->
+    <button class="pill-btn" id="distBtn" style="display:none">🔍 Visa hur multiplikationen ser ut</button>
+    <div class="legend" id="legend">
+      <div class="legend-item"><div class="ldot x"></div> x-termer</div>
+      <div class="legend-item" id="legendY" style="display:none"><div class="ldot y"></div> y-termer</div>
+      <div class="legend-item" id="legendZ" style="display:none"><div class="ldot z"></div> z-termer</div>
+      <div class="legend-item" id="legendQ" style="display:none"><div class="ldot q"></div> potenser/produkter</div>
+      <div class="legend-item"><div class="ldot c"></div> konstanter</div>
+    </div>
+  </div>
+
+  <div class="input-section">
+    <div class="input-label" id="inputLabel">Ditt svar</div>
+    <div class="input-row">
+      <input class="answer-input" id="answerInput" type="text"
+             placeholder="t.ex.  2x + 3" autocomplete="off" spellcheck="false"/>
+      <button class="check-btn" id="checkBtn">Kontrollera ✓</button>
+    </div>
+    <div class="format-hint" id="formatHint">
+      Skriv t.ex. <code>3x + 5</code> eller <code>2x − 4y + 1</code>
+      &nbsp;·&nbsp; Använd <code>-</code> för negativa termer
+    </div>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="action-row">
+    <button class="next-btn" id="nextBtn">Nästa uppgift →</button>
+    <button class="show-sol-btn" id="showSolBtn">💡 Visa lösning</button>
+    <button class="new-btn" id="newBtn">Ny uppgift 🔀</button>
+  </div>
+
+  <div class="solution-panel" id="solutionPanel"></div>
+</div>
+
+<div class="score-card">
+  <div class="score-item"><h2>Rätt</h2><div class="score-num g" id="sRight">0</div></div>
+  <div class="score-div"></div>
+  <div class="score-item"><h2>Fel</h2><div class="score-num r" id="sWrong">0</div></div>
+  <div class="score-div"></div>
+  <div class="score-item"><h2>Totalt</h2><div class="score-num b" id="sTotal">0</div></div>
+  <button class="reset-btn" id="resetBtn">Nollställ</button>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>⚙️ Lärare – inställningar</h2>
+    <p class="modal-sub">Välj vilka nivåer som är aktiva och justera svårighetsgraden.</p>
+    <div class="sg">
+      <label>Aktiva nivåer</label>
+      <p class="sdesc">Avmarkera nivåer som inte ska visas för eleverna.</p>
+      <div class="trow active" data-lv="1">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 1 – Enklaste insteg</div>
+             <div class="trow-desc">x och konstanter, positiva koeff 1–5</div></div>
+      </div>
+      <div class="trow active" data-lv="2">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 2 – x och konstanter, fler termer</div>
+             <div class="trow-desc">4–6 termer, positiva koefficienter</div></div>
+      </div>
+      <div class="trow active" data-lv="3">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 3 – Tre eller fyra variabeltyper</div>
+             <div class="trow-desc">x, y, z (eller a, b, c, d) – negativa koefficienter ok</div></div>
+      </div>
+      <div class="trow active" data-lv="4">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 4 – Två variabler, negativa koefficienter</div>
+             <div class="trow-desc">5–8 termer med x, y och konstanter</div></div>
+      </div>
+      <div class="trow active" data-lv="5">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 5 – Enkel parentes, positiv faktor</div>
+             <div class="trow-desc">Bara en parentes, inga fria termer. Visuell ledtråd tillgänglig</div></div>
+      </div>
+      <div class="trow active" data-lv="6">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 6 – Potenser och sammansatta termer</div>
+             <div class="trow-desc">x², xy, yz bland vanliga termer – sortера rätt typ</div></div>
+      </div>
+      <div class="trow active" data-lv="7">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 7 – Parentes + fria termer, positiv faktor</div>
+             <div class="trow-desc">Multiplicera ut och samla sedan alla termer</div></div>
+      </div>
+      <div class="trow active" data-lv="8">
+        <div class="trow-check">✓</div>
+        <div><div class="trow-label">Nivå 8 – Parentes med negativ faktor</div>
+             <div class="trow-desc">Teckenbyte krävs vid utmultiplikation</div></div>
+      </div>
+    </div>
+    <div class="sg">
+      <label>Koefficient-intervall (max absolut värde)</label>
+      <p class="sdesc">Gäller nivå 2–8. Nivå 1 är alltid begränsad till 1–5.</p>
+      <div class="range-row">
+        <span style="font-size:.85rem;color:var(--muted)">2</span>
+        <input type="range" id="coeffRange" min="2" max="12" value="9"/>
+        <span style="font-size:.85rem;color:var(--muted)">12</span>
+        <div class="range-val" id="coeffVal">9</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="mCancel">Avbryt</button>
+      <button class="btn-save" id="mSave">Spara</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════
+//  SETTINGS & STATE
+// ═══════════════════════════════════════════
+let cfg     = { activeLevels:[1,2,3,4,5,6,7,8], maxCoeff:9 };
+let pending = null;
+
+let level   = 1;
+let terms   = [];          // raw term objects (may include pFirst/pClose markers)
+let expTerms= [];          // fully expanded flat terms (no markers)
+let answer  = {};          // {x,y,c} final simplified answer
+let hl      = false;       // color-code toggle
+let showOnes= false;       // show hidden 1 in front of x-terms (level 1)
+let distHL  = false;       // distribution highlight toggle (level 4 only)
+let step    = 1;           // 1=expand parens  2=simplify  (levels 4-6 only)
+let done    = false;
+let sR=0, sW=0;
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+const rnd   = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const rndNZ = (a,b) => { let v; do{ v=rnd(a,b); }while(!v); return v; };
+function shuf(a){ for(let i=a.length-1;i>0;i--){ const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]]; } return a; }
+const M = () => cfg.maxCoeff;
+
+//  GENERATORS
+// ═══════════════════════════════════════════
+
+function pickDistinct(pool, n){
+  const p=[...pool]; const out=[];
+  for(let i=0;i<n&&p.length;i++){ const j=rnd(0,p.length-1); out.push(p[j]); p.splice(j,1); }
+  return out;
+}
+function distinctCoeffs(n, max, signed=false){
+  const pool=Array.from({length:max},(_,i)=>i+1);
+  for(let i=pool.length-1;i>0;i--){ const j=rnd(0,i);[pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool.slice(0,n).map(v=>signed?(Math.random()<.5?v:-v):v);
+}
+
+/* Nivå 1 – x + konstanter, positiva, koeff 1–5, distinkta */
+function genL1(){
+  const t=[];
+  distinctCoeffs(rnd(2,3),5).forEach(v=>t.push({coeff:v,varType:'x'}));
+  distinctCoeffs(rnd(1,2),5).forEach(v=>t.push({coeff:v,varType:''}));
+  return shuf(t);
+}
+
+/* Nivå 2 – x + konstanter, positiva, fler termer */
+function genL2(){
+  const t=[];
+  distinctCoeffs(rnd(2,3),M()).forEach(v=>t.push({coeff:v,varType:'x'}));
+  distinctCoeffs(rnd(2,3),M()).forEach(v=>t.push({coeff:v,varType:''}));
+  return shuf(t);
+}
+
+/* Nivå 3 – 3 eller 4 variabeltyper, negativa ok
+   Slumpar antingen {x,y,z} eller {a,b,c,d} som variabelnamn */
+function genL3(){
+  const useFour = Math.random()<.4;
+  const vars = useFour ? pickDistinct(['a','b','c','d'],4) : ['x','y','z'];
+  const t=[];
+  vars.forEach(v=>{
+    distinctCoeffs(rnd(2,3),M(),true).forEach(c=>t.push({coeff:c,varType:v}));
+  });
+  distinctCoeffs(rnd(1,2),M(),true).forEach(c=>t.push({coeff:c,varType:''}));
+  return shuf(t);
+}
+
+/* Nivå 4 – x + y + konstanter, negativa ok (fd nivå 3) */
+function genL4(){
+  const t=[];
+  distinctCoeffs(rnd(2,3),M(),true).forEach(v=>t.push({coeff:v,varType:'x'}));
+  distinctCoeffs(rnd(2,3),M(),true).forEach(v=>t.push({coeff:v,varType:'y'}));
+  distinctCoeffs(rnd(1,2),M(),true).forEach(v=>t.push({coeff:v,varType:''}));
+  return shuf(t);
+}
+
+/* Nivå 5 – enkel parentes, positiv faktor, inga fria termer (fd nivå 4) */
+function genL5(){
+  const pool=distinctCoeffs(3,6);
+  const f=pool[0], a=pool[1], b=pool[2]*(Math.random()<.5?1:-1);
+  return [
+    {coeff:f*a,varType:'x',pFactor:f,pFirst:true},
+    {coeff:f*b,varType:'',pClose:true}
+  ];
+}
+
+/* Nivå 6 – potenser och sammansatta termer blandat med vanliga termer.
+   varType-nycklar: 'x','y','x2'(x²),'y2'(y²),'xy','xz','yz',''(konstant)
+   Minst ett par likadana termtyper garanteras. */
+function genL6(){
+  const typePool=shuf(['x','x','y','y','x2','xy','y2','xz']);
+  const chosen=typePool.slice(0,rnd(5,7));
+  const counts={};
+  chosen.forEach(v=>{counts[v]=(counts[v]||0)+1;});
+  if(!Object.values(counts).some(c=>c>=2)){
+    chosen.push(chosen[rnd(0,chosen.length-1)]);
+  }
+  const usedAbs=new Set();
+  const t=[];
+  chosen.forEach(vt=>{
+    let c; let tries=0;
+    do{ c=rndNZ(-M(),M()); tries++; }while(usedAbs.has(Math.abs(c))&&tries<20);
+    usedAbs.add(Math.abs(c));
+    t.push({coeff:c,varType:vt});
+  });
+  return shuf(t);
+}
+
+/* Nivå 7 – parentes (positiv faktor) + fria termer (fd nivå 5) */
+function genL7(){
+  const pool=distinctCoeffs(3,7);
+  const f=pool[0], a=pool[1], b=pool[2]*(Math.random()<.5?1:-1);
+  const used=new Set([f,a,Math.abs(b)]);
+  const freePool=Array.from({length:M()},(_,i)=>i+1).filter(v=>!used.has(v));
+  shuf(freePool);
+  const free=[];
+  for(let i=0;i<rnd(1,2);i++) free.push({coeff:freePool[i]*(Math.random()<.5?1:-1),varType:'x'});
+  for(let i=0;i<rnd(1,2);i++) free.push({coeff:freePool[2+i]*(Math.random()<.5?1:-1),varType:''});
+  const p1={coeff:f*a,varType:'x',pFactor:f,pFirst:true};
+  const p2={coeff:f*b,varType:'',pClose:true};
+  free.splice(rnd(0,free.length),0,p1,p2);
+  return free;
+}
+
+/* Nivå 8 – parentes med negativ faktor + fria termer (fd nivå 6) */
+function genL8(){
+  const pool=distinctCoeffs(3,6);
+  const f=-pool[0], a=pool[1], b=pool[2]*(Math.random()<.5?1:-1);
+  const used=new Set([Math.abs(f),a,Math.abs(b)]);
+  const freePool=Array.from({length:M()},(_,i)=>i+1).filter(v=>!used.has(v));
+  shuf(freePool);
+  const free=[];
+  for(let i=0;i<rnd(1,2);i++) free.push({coeff:freePool[i]*(Math.random()<.5?1:-1),varType:'x'});
+  for(let i=0;i<rnd(1,2);i++) free.push({coeff:freePool[2+i]*(Math.random()<.5?1:-1),varType:''});
+  const p1={coeff:f*a,varType:'x',pFactor:f,pFirst:true};
+  const p2={coeff:f*b,varType:'',pClose:true};
+  free.splice(rnd(0,free.length),0,p1,p2);
+  return free;
+}
+
+/* calcAnswer – sums each unique varType into a map.
+   For levels 1–5,7,8 the result keys are 'x','y',''.
+   For level 6 keys can also be 'x2','y2','xy','xz','yz' etc. */
+function calcAnswer(ts){
+  const map={};
+  ts.forEach(t=>{
+    if(t.pFirst||t.pClose) return; // skip markers (handled via coeff already)
+    map[t.varType]=(map[t.varType]||0)+t.coeff;
+  });
+  // For backwards compat keep x,y,c shortcuts for non-L6 levels
+  return { x:map['x']||0, y:map['y']||0, c:map['']||0, map };
+}
+
+/* Flatten: strip pFirst/pClose markers, keep expanded coefficients */
+function flatten(ts){ return ts.map(t=>({ coeff:t.coeff, varType:t.varType })); }
+
+const isParenLevel = () => level >= 5 && level !== 6;
+
+function newProblem(){
+  hl=false; showOnes=false; distHL=false; done=false; step=1;
+  switch(level){
+    case 1: terms=genL1(); break;
+    case 2: terms=genL2(); break;
+    case 3: terms=genL3(); break;
+    case 4: terms=genL4(); break;
+    case 5: terms=genL5(); break;
+    case 6: terms=genL6(); break;
+    case 7: terms=genL7(); break;
+    case 8: terms=genL8(); break;
+  }
+  expTerms = flatten(terms);
+  answer   = calcAnswer(terms);
+  renderExpr();
+  updateStepUI();
+  clearUI();
+}
+
+// ═══════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════
+function termClass(t){
+  if(!hl) return '';
+  const v=t.varType;
+  if(v==='x') return 'hx';
+  if(v==='y') return 'hy';
+  if(v==='z'||v==='a'||v==='b'||v==='c'||v==='d') return 'hz';
+  if(v===''  ) return 'hc';
+  return 'hq'; // x2, y2, xy, xz, yz – compound/power
+}
+
+/* Map internal varType keys to display strings */
+const DISPLAY_VT = {
+  'x':'x','y':'y','z':'z','a':'a','b':'b','c':'c','d':'d',
+  'x2':'x²','y2':'y²','xy':'xy','xz':'xz','yz':'yz',
+  '':''
+};
+function dispVT(vt){ return DISPLAY_VT[vt]??vt; }
+
+function fmtInner(raw,vt){ const a=Math.abs(raw); const dv=dispVT(vt); return dv===''?String(a):(a===1?dv:a+dv); }
+function fmtOuter(abs,vt){
+  const dv=dispVT(vt);
+  if(dv==='') return String(abs);
+  if(abs===1 && !(showOnes && level===1)) return dv;
+  return abs+dv;
+}
+
+/* Render the original expression (always shown, with parens if present) */
+function renderOriginal(){
+  const box = document.getElementById('exprBox');
+  let html='', pF=null, termIdx=0;
+
+  for(let i=0;i<terms.length;i++){
+    const t = terms[i];
+
+    if(t.pFirst){
+      pF = t.pFactor;
+      const af  = Math.abs(pF);
+      const neg = pF < 0;
+      const fSign = termIdx===0 ? (neg?'−':'') : (neg?' − ':' + ');
+      const fStr  = af===1 ? '' : String(af);
+      html += `<span class="term">${fSign}${fStr}(</span>`;
+      const rawA = t.coeff / pF;
+      html += `<span class="term ${termClass(t)}">${rawA<0?'−':''}${fmtInner(rawA,t.varType)}</span>`;
+      termIdx++;
+
+    } else if(t.pClose){
+      const rawB = t.coeff / pF;
+      html += `<span class="term ${termClass(t)}">${rawB<0?' − ':' + '}${fmtInner(rawB,t.varType)}</span>`;
+      html += `<span class="term">)</span>`;
+      pF=null; termIdx++;
+
+    } else {
+      const abs = Math.abs(t.coeff);
+      const sep = termIdx===0 ? (t.coeff<0?'−':'') : (t.coeff<0?' − ':' + ');
+      html += `<span class="term ${termClass(t)}">${sep}${fmtOuter(abs,t.varType)}</span>`;
+      termIdx++;
+    }
+  }
+  box.innerHTML = html;
+}
+
+/* Render flat expanded terms into the step-2 slide-in box */
+function renderStep2Box(){
+  const box = document.getElementById('step2Box');
+  let html = '';
+  expTerms.forEach((t,i)=>{
+    const abs = Math.abs(t.coeff);
+    const cls = hl ? (t.varType==='x'?'hx':t.varType==='y'?'hy':'hc') : '';
+    const sep = i===0 ? (t.coeff<0?'−':'') : (t.coeff<0?' − ':' + ');
+    html += `<span class="term ${cls}">${sep}${fmtOuter(abs,t.varType)}</span>`;
+  });
+  box.innerHTML = html;
+}
+
+function renderExpr(){
+  renderOriginal();
+  if(isParenLevel() && step===2) renderStep2Box();
+  updateLegend();
+}
+
+function buildDistPanel(){
+  const p1 = terms.find(t=>t.pFirst);
+  const p2 = terms.find(t=>t.pClose);
+  const f  = p1.pFactor;
+  const rawA = p1.coeff / f;
+  const rawB = p2.coeff / f;
+  const fStr = String(f);
+  const aStr = rawA===1 ? 'x' : String(Math.abs(rawA))+'x';
+  const bStr = String(Math.abs(rawB));
+  const bSign = rawB >= 0 ? '+' : '−';
+  const html =
+    `<span class="dp-label">🔍 Så här ser multiplikationen ut</span>`+
+    `${fStr}·${aStr} ${bSign} ${fStr}·${bStr} =`;
+  const panel = document.getElementById('distPanel');
+  panel.innerHTML = html;
+  panel.style.display = '';
+}
+
+function updateLegend(){
+  const legend = document.getElementById('legend');
+  const cBtn   = document.getElementById('colorBtn');
+  const lY     = document.getElementById('legendY');
+  const lZ     = document.getElementById('legendZ');
+  const lQ     = document.getElementById('legendQ');
+  if(hl){
+    legend.classList.add('visible'); cBtn.classList.add('active');
+    cBtn.textContent='🎨 Dölj färgkodning';
+    lY.style.display = (level===3||level===4||level===6) ? 'flex':'none';
+    lZ.style.display = level===3 ? 'flex':'none';
+    lQ.style.display = level===6 ? 'flex':'none';
+  } else {
+    legend.classList.remove('visible'); cBtn.classList.remove('active');
+    cBtn.textContent='🎨 Färgkoda termer';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  STEP UI
+// ═══════════════════════════════════════════
+function updateStepUI(){
+  const ind       = document.getElementById('stepIndicator');
+  const pip1      = document.getElementById('pip1');
+  const pip2      = document.getElementById('pip2');
+  const exprLabel = document.getElementById('exprLabel');
+  const inputLabel= document.getElementById('inputLabel');
+  const fmtHint   = document.getElementById('formatHint');
+  const step2Row  = document.getElementById('step2Row');
+  const distBtn   = document.getElementById('distBtn');
+
+  // Ones button – only level 1
+  const onesBtn = document.getElementById('onesBtn');
+  onesBtn.style.display = level===1 ? '' : 'none';
+  if(level!==1){ showOnes=false; onesBtn.classList.remove('active'); onesBtn.textContent='1️⃣ Visa osynliga ettor'; }
+
+  // Distribution hint button – only on level 5, step 1
+  distBtn.style.display = (level===5 && step===1) ? '' : 'none';
+  if(!(level===5 && step===1)){ distHL=false; distBtn.classList.remove('active'); distBtn.textContent='🔍 Visa hur multiplikationen ser ut'; }
+
+  if(!isParenLevel()){
+    ind.classList.remove('visible');
+    exprLabel.textContent  = 'Uttrycket att förenkla';
+    inputLabel.textContent = 'Ditt svar';
+    fmtHint.innerHTML = level===6
+      ? 'Skriv t.ex. <code>3x2 + 2x − 5</code>&nbsp;·&nbsp;x² skrivs som <code>x2</code> eller <code>x^2</code>&nbsp;·&nbsp;xy skrivs som <code>xy</code>&nbsp;·&nbsp;Ordningen spelar ingen roll'
+      : 'Skriv t.ex. <code>3x + 5</code> eller <code>2x − 4y + 1</code>&nbsp;·&nbsp;Ordningen spelar ingen roll&nbsp;·&nbsp;Använd <code>-</code> för negativa termer';
+    step2Row.classList.remove('show','animate');
+    return;
+  }
+
+  ind.classList.add('visible');
+
+  if(step===1){
+    pip1.className = 'step-pip active';
+    pip2.className = 'step-pip';
+    exprLabel.textContent  = 'Steg 1 – Multiplicera ut parentesen';
+    inputLabel.textContent = 'Skriv uttrycket utan parentes';
+    fmtHint.innerHTML = `Multiplicera faktorn med <em>varje</em> term i parentesen${level===6?' – tecknet byter sig!':''}.&nbsp; Skriv hela uttrycket utan parentes, t.ex. <code>6x + 8 − x + 1</code>`;
+    step2Row.classList.remove('show','animate');
+  } else {
+    pip1.className = 'step-pip done-pip';
+    pip2.className = 'step-pip active';
+    exprLabel.textContent  = 'Steg 1 – Uttrycket med parentes';
+    inputLabel.textContent = 'Steg 2 – Förenklat svar';
+    fmtHint.innerHTML = 'Samla likadana termer i raden nedan och skriv det förenklade svaret, t.ex. <code>5x + 9</code>&nbsp;·&nbsp;Ordningen spelar ingen roll';
+    // Slide in step-2 row
+    renderStep2Box();
+    step2Row.classList.add('show');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>step2Row.classList.add('animate')));
+  }
+}
+
+// ═══════════════════════════════════════════
+//  PARSE STUDENT ANSWER
+// ═══════════════════════════════════════════
+/* Normalise a student-written varType string to internal key.
+   Accepts: x2 or x^2 → 'x2', y2 or y^2 → 'y2', xy,xz,yz,x,y,z,a,b,c,d,'' */
+function normaliseVT(raw){
+  const s=raw.toLowerCase().replace('^','');
+  if(s==='x2'||s==='2x') return 'x2';  // 2x means x² only if no digit before
+  if(s==='y2'||s==='2y') return 'y2';
+  return s; // xy, xz, yz, x, y, z, a-d, ''
+}
+
+function parseAns(raw){
+  let s = raw.trim().replace(/[−–]/g,'-').replace(/\s+/g,'').toLowerCase();
+  if(!s||s==='0') return {map:{'':0},ok:true,x:0,y:0,c:0};
+  if(s[0]!=='-') s='+'+s;
+  // Token: sign, optional digits, optional variable part (letters + optional digit/^)
+  const toks = s.match(/[+-][^+-]+/g);
+  if(!toks) return {ok:false};
+  const map={}; let found=false;
+  for(const tok of toks){
+    // Match:  sign  coeff?  variable?
+    const m = tok.match(/^([+-])(\d*)([a-z][a-z0-9\^]*)?$/);
+    if(!m) return {ok:false};
+    const sg=m[1]==='-'?-1:1;
+    const dg=m[2], varRaw=m[3]||'';
+    if(!dg&&!varRaw) return {ok:false};
+    let co = dg ? parseInt(dg,10) : 1; co *= sg;
+    const vt = normaliseVT(varRaw);
+    map[vt]=(map[vt]||0)+co;
+    found=true;
+  }
+  const res={ok:found, map, x:map['x']||0, y:map['y']||0, c:map['']||0};
+  return res;
+}
+
+/* Compare student answer map to correct answer map */
+function answerCorrect(studentMap, correctMap){
+  const allKeys = new Set([...Object.keys(studentMap), ...Object.keys(correctMap)]);
+  for(const k of allKeys){
+    if((studentMap[k]||0) !== (correctMap[k]||0)) return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════
+//  CHECK ANSWERS
+// ═══════════════════════════════════════════
+function checkStep1(){
+  const raw = document.getElementById('answerInput').value;
+  const p   = parseAns(raw);
+  const fb  = document.getElementById('feedback');
+  const inp = document.getElementById('answerInput');
+
+  if(!p.ok){
+    fb.className='feedback show parse';
+    fb.innerHTML='⚠️ Kunde inte tolka svaret. Skriv t.ex. <code style="background:var(--warn-light);padding:1px 5px;border-radius:4px">6x + 8 − x + 1</code>';
+    return;
+  }
+  const ea  = calcAnswer(expTerms);
+  const ok  = p.x===ea.x && p.y===ea.y && p.c===ea.c;
+  if(ok){
+    inp.classList.add('ok');
+    fb.className='feedback show ok';
+    fb.innerHTML='✅ Rätt utmultiplicerat! Förenkla nu uttrycket i raden nedan.';
+    setTimeout(()=>{
+      step=2;
+      inp.value=''; inp.classList.remove('ok','err');
+      fb.className='feedback';
+      distHL=false;
+      renderExpr();
+      updateStepUI();
+      inp.placeholder='t.ex.  5x + 9';
+      inp.focus();
+    }, 900);
+  } else {
+    const pf  = terms.find(t=>t.pFirst).pFactor;
+    const wr  = [];
+    if(p.x!==ea.x) wr.push('x-termerna');
+    if(p.y!==ea.y) wr.push('y-termerna');
+    if(p.c!==ea.c) wr.push('konstanterna');
+    fb.className='feedback show err';
+    fb.innerHTML=`❌ Inte riktigt. Kontrollera att du multiplicerade faktorn <b>${pf}</b> med varje term${level===6?' – kom ihåg teckenbyte':''}.${wr.length?' Fel i: '+wr.join(', '):''} Rätt utmultiplicerat: <span style="font-family:'JetBrains Mono',monospace;font-weight:800">${buildFlatStr(expTerms)}</span>`;    done=true; sW++;
+    document.getElementById('showSolBtn').classList.add('show');
+    document.getElementById('nextBtn').classList.add('show');
+    updateScore();
+  }
+}
+
+function checkStep2(){
+  if(done) return;
+  const raw = document.getElementById('answerInput').value;
+  const p   = parseAns(raw);
+  const fb  = document.getElementById('feedback');
+  const inp = document.getElementById('answerInput');
+
+  if(!p.ok){
+    fb.className='feedback show parse';
+    fb.innerHTML='⚠️ Kunde inte tolka svaret.';
+    return;
+  }
+  const ok = level===6
+    ? answerCorrect(p.map, answer.map)
+    : (p.x===answer.x && p.y===answer.y && p.c===answer.c);
+  done=true;
+  if(ok){
+    sR++; inp.classList.add('ok');
+    fb.className='feedback show ok';
+    fb.innerHTML = isParenLevel()
+      ? '✅ Rätt svar! Bra jobbat – båda stegen klara!'
+      : '✅ Rätt svar! Bra jobbat!';
+  } else {
+    sW++; inp.classList.add('err');
+    let wrStr='';
+    if(level===6){
+      const allKeys=new Set([...Object.keys(p.map||{}), ...Object.keys(answer.map||{})]);
+      const wr=[...allKeys].filter(k=>(p.map[k]||0)!==(answer.map[k]||0)).map(k=>dispVT(k)||'konstanter');
+      wrStr=wr.length?' – kontrollera '+wr.join(', '):'';
+    } else {
+      const wr=[];
+      if(p.x!==answer.x) wr.push('x-termerna');
+      if(p.y!==answer.y) wr.push('y-termerna');
+      if(p.c!==answer.c) wr.push('konstanterna');
+      wrStr=wr.length?' – kontrollera '+wr.join(', '):'';
+    }
+    const correctStr = level===6 ? buildAnsStrMap(answer.map) : buildAnsStr(answer.x,answer.y,answer.c);
+    fb.className='feedback show err';
+    fb.innerHTML=`❌ Inte riktigt${wrStr}. Rätt svar: <span style="font-family:'JetBrains Mono',monospace;font-weight:800">${correctStr}</span>`;
+    document.getElementById('showSolBtn').classList.add('show');
+  }
+  document.getElementById('nextBtn').classList.add('show');
+  updateScore();
+}
+
+function checkAnswer(){
+  if(done) return;
+  if(isParenLevel() && step===1) checkStep1();
+  else checkStep2();
+}
+
+// ═══════════════════════════════════════════
+//  SOLUTION BUILDER
+// ═══════════════════════════════════════════
+function fmtT(coeff,vt){
+  const a=Math.abs(coeff), neg=coeff<0;
+  const dv=dispVT(vt);
+  const c=(a===1&&dv!=='')?'':String(a);
+  return (neg?'−':'')+c+dv;
+}
+function buildAnsStr(x,y,c){
+  const pts=[];
+  if(x!==0) pts.push({v:x,vt:'x',cls:'hx'});
+  if(y!==0) pts.push({v:y,vt:'y',cls:'hy'});
+  if(c!==0) pts.push({v:c,vt:'',cls:'hc'});
+  if(!pts.length) return '0';
+  return pts.map((p,i)=>{
+    const a=Math.abs(p.v), v=p.vt;
+    const cs=(a===1&&v!=='')?'':String(a);
+    const sep=i===0?(p.v<0?'−':''):(p.v<0?' − ':' + ');
+    return `<span class="${p.cls}">${sep}${cs}${v}</span>`;
+  }).join('');
+}
+/* Build answer string from a varType map (used for level 6) */
+function buildAnsStrMap(map){
+  // Sort: x first, then other singles, then compounds/powers, then constant
+  const order=['x','y','z','a','b','c','d','x2','y2','xy','xz','yz',''];
+  const pts=order.filter(k=>map[k]&&map[k]!==0).map(k=>({v:map[k],vt:k}));
+  // Add any keys not in order
+  Object.keys(map).forEach(k=>{ if(!order.includes(k)&&map[k]) pts.push({v:map[k],vt:k}); });
+  if(!pts.length) return '0';
+  return pts.map((p,i)=>{
+    const a=Math.abs(p.v), dv=dispVT(p.vt);
+    const cs=(a===1&&dv!=='')?'':String(a);
+    const cls=termClass({varType:p.vt});
+    const sep=i===0?(p.v<0?'−':''):(p.v<0?' − ':' + ');
+    return `<span class="term ${cls}">${sep}${cs}${dv}</span>`;
+  }).join('');
+}
+function buildFlatStr(ts){
+  return ts.map((t,i)=>{
+    const abs=Math.abs(t.coeff), vt=t.varType||'';
+    const cs=(abs===1&&vt!=='')?'':String(abs);
+    const sep=i===0?(t.coeff<0?'−':''):(t.coeff<0?' − ':' + ');
+    return sep+cs+vt;
+  }).join('');
+}
+
+function buildSolution(){
+  const {x,y,c} = answer;
+  const pf = terms.find(t=>t.pFirst)?.pFactor;
+  const steps = [];
+
+  if(isParenLevel() && pf!==undefined){
+    const p1t  = terms.find(t=>t.pFirst);
+    const p2t  = terms.find(t=>t.pClose);
+    const rawA = p1t.coeff/pf, rawB = p2t.coeff/pf;
+    const af   = Math.abs(pf); const fStr = af===1?'':String(af);
+    const neg  = pf<0;
+    steps.push({
+      t:'Multiplicera ut parentesen',
+      b:`Faktorn är <b>${pf}</b>${neg?' (negativ – alla tecken inuti byter sig)':''}.&nbsp;`+
+        `<span class="mono">${neg?'−':''}${fStr}(`+
+        `${fmtT(rawA,'x')} ${rawB>=0?'+ ':''}${fmtT(rawB,'')}) = `+
+        `<span class="hx">${fmtT(p1t.coeff,'x')}</span> `+
+        `${p2t.coeff>=0?'+ ':''}` +
+        `<span class="hc">${fmtT(p2t.coeff,'')}</span></span>`
+    });
+    steps.push({ t:'Uttrycket utan parentes', b:`<span class="mono">${buildFlatStr(expTerms)}</span>` });
+  }
+
+  if(level===6){
+    // Special solution for compound/power level
+    steps.push({
+      t:'Identifiera termtyper',
+      b:`Kom ihåg: <span class="mono"><span class="hx">x</span>, <span class="hy">x²</span>, <span class="hq">xy</span></span> är <b>olika</b> termtyper och kan inte samlas med varandra!`
+    });
+    // Group by varType and show which can be combined
+    const groups={};
+    expTerms.forEach(t=>{ if(!groups[t.varType]) groups[t.varType]=[]; groups[t.varType].push(t.coeff); });
+    Object.entries(groups).forEach(([vt,coeffs])=>{
+      if(coeffs.length>1){
+        const sum=coeffs.reduce((a,b)=>a+b,0);
+        const pp=coeffs.map(c=>`(${c<0?'−':'+'}${Math.abs(c)===1&&vt!==''?'':Math.abs(c)}${dispVT(vt)})`).join(' ');
+        const cls=termClass({varType:vt});
+        steps.push({t:`Samla ${dispVT(vt)||'konstanter'}-termerna`,
+          b:`<span class="mono"><span class="${cls}">${pp} = ${sum===0?'0':fmtT(sum,vt)}</span></span>`});
+      }
+    });
+    steps.push({t:'Förenklat svar', b:`<span class="mono">${buildAnsStrMap(answer.map)}</span>`});
+  } else {
+    const hasY = expTerms.some(t=>t.varType==='y');
+    const hasZ = expTerms.some(t=>['z','a','b','c','d'].includes(t.varType));
+    steps.push({
+      t:'Identifiera likadana termer',
+      b:`Markera: <span class="mono"><span class="hx">x-termer</span>`+
+        `${hasY?', <span class="hy">y-termer</span>':''}`+
+        `${hasZ?', <span class="hz">övriga variabler</span>':''}, `+
+        `<span class="hc">konstanter</span></span>`
+    });
+
+    const xT = expTerms.filter(t=>t.varType==='x');
+    const yT = expTerms.filter(t=>t.varType==='y');
+    const cT = expTerms.filter(t=>t.varType==='');
+    // Group remaining variable types (z, a, b, c, d)
+    const otherVars = [...new Set(expTerms.map(t=>t.varType).filter(v=>v!==''&&v!=='x'&&v!=='y'))];
+
+    if(xT.length>1){
+      const pp=xT.map(t=>{const a=Math.abs(t.coeff);return `(${t.coeff<0?'−':'+'}${a===1?'x':a+'x'})`;}).join(' ');
+      steps.push({t:'Samla x-termerna', b:`<span class="mono"><span class="hx">${pp} = ${x===0?'0':fmtT(x,'x')}</span></span>`});
+    }
+    if(yT.length>=1){
+      if(yT.length===1){
+        steps.push({t:'y-termen', b:`<span class="mono"><span class="hy">Bara en y-term: ${fmtT(yT[0].coeff,'y')}</span></span>`});
+      } else {
+        const pp=yT.map(t=>{const a=Math.abs(t.coeff);return `(${t.coeff<0?'−':'+'}${a===1?'y':a+'y'})`;}).join(' ');
+        steps.push({t:'Samla y-termerna', b:`<span class="mono"><span class="hy">${pp} = ${y===0?'0':fmtT(y,'y')}</span></span>`});
+      }
+    }
+    otherVars.forEach(v=>{
+      const vT=expTerms.filter(t=>t.varType===v);
+      const sum=vT.reduce((a,t)=>a+t.coeff,0);
+      if(vT.length>1){
+        const pp=vT.map(t=>{const a=Math.abs(t.coeff);return `(${t.coeff<0?'−':'+'}${a===1?v:a+v})`;}).join(' ');
+        steps.push({t:`Samla ${v}-termerna`, b:`<span class="mono"><span class="hz">${pp} = ${sum===0?'0':fmtT(sum,v)}</span></span>`});
+      }
+    });
+    if(cT.length>1){
+      const pp=cT.map(t=>`(${t.coeff<0?'−':'+'}${Math.abs(t.coeff)})`).join(' ');
+      steps.push({t:'Samla konstanterna', b:`<span class="mono"><span class="hc">${pp} = ${c===0?'0':fmtT(c,'')}</span></span>`});
+    }
+    steps.push({t:'Förenklat svar', b:`<span class="mono">${buildAnsStr(x,y,c)}</span>`});
+  }
+
+  let h = `<div class="sol-title">Steg för steg</div>`;
+  steps.forEach((s,i)=>{
+    h += `<div class="sol-step"><div class="sol-num">${i+1}</div><div class="sol-text"><b>${s.t}</b><br>${s.b}</div></div>`;
+  });
+  return h;
+}
+
+// ═══════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════
+function clearUI(){
+  const inp = document.getElementById('answerInput');
+  inp.value=''; inp.classList.remove('ok','err');
+  inp.placeholder='t.ex.  2x + 3';
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('nextBtn').classList.remove('show');
+  document.getElementById('showSolBtn').classList.remove('show');
+  document.getElementById('showSolBtn').textContent='💡 Visa lösning';
+  const sp = document.getElementById('solutionPanel');
+  sp.classList.remove('show'); sp.innerHTML='';
+  document.getElementById('colorBtn').classList.remove('active');
+  document.getElementById('legend').classList.remove('visible');
+  document.getElementById('colorBtn').textContent='🎨 Färgkoda termer';
+  const ob = document.getElementById('onesBtn');
+  ob.classList.remove('active'); ob.textContent='1️⃣ Visa osynliga ettor';
+  showOnes=false;
+  const s2 = document.getElementById('step2Row');
+  s2.classList.remove('show','animate');
+  const dp = document.getElementById('distPanel');
+  dp.style.display='none'; dp.innerHTML='';
+  inp.focus();
+}
+function updateScore(){
+  document.getElementById('sRight').textContent=sR;
+  document.getElementById('sWrong').textContent=sW;
+  document.getElementById('sTotal').textContent=sR+sW;
+}
+
+const DESCS = {
+  1:'Nivå 1 – Förenkla uttryck med x-termer och konstanter. Alla koefficienter är positiva och små (1–5).',
+  2:'Nivå 2 – Förenkla uttryck med x-termer och konstanter. Fler termer och större värden.',
+  3:'Nivå 3 – Tre eller fyra variabeltyper (t.ex. x, y, z eller a, b, c, d). Negativa koefficienter förekommer. Kom ihåg: bara likadana termer kan samlas!',
+  4:'Nivå 4 – Förenkla uttryck med x-termer, y-termer och konstanter. Negativa koefficienter förekommer.',
+  5:'Nivå 5 – Multiplicera ut en enkel parentes (positiv faktor) och skriv svaret. Använd ledtrådsknappen om du behöver hjälp.',
+  6:'Nivå 6 – Uttryck med potenser (x²) och sammansatta termer (xy, xz). Kom ihåg att x² och x är OLIKA termtyper och inte kan samlas!',
+  7:'Nivå 7 – Parentes med positiv faktor plus fria termer. Multiplicera ut och samla sedan alla likadana termer.',
+  8:'Nivå 8 – Parentes med negativ faktor. Kom ihåg att alla tecken inuti parentesen byter sig!'
+};
+
+// ═══════════════════════════════════════════
+//  SETTINGS MODAL
+// ═══════════════════════════════════════════
+function openModal(){
+  pending = JSON.parse(JSON.stringify(cfg));
+  document.querySelectorAll('.trow[data-lv]').forEach(r=>{
+    const lv=parseInt(r.dataset.lv), on=pending.activeLevels.includes(lv);
+    r.classList.toggle('active',on);
+    r.querySelector('.trow-check').textContent=on?'✓':'';
+  });
+  document.getElementById('coeffRange').value=pending.maxCoeff;
+  document.getElementById('coeffVal').textContent=pending.maxCoeff;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+function saveModal(){
+  cfg = JSON.parse(JSON.stringify(pending));
+  document.querySelectorAll('.level-btn').forEach(b=>{
+    b.style.display = cfg.activeLevels.includes(parseInt(b.dataset.level)) ? '' : 'none';
+  });
+  if(!cfg.activeLevels.includes(level)){
+    const first = document.querySelector('.level-btn:not([style*="none"])');
+    if(first) first.click(); else newProblem();
+  } else { newProblem(); }
+  closeModal();
+}
+
+// ═══════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════
+document.querySelectorAll('.level-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    level = parseInt(btn.dataset.level);
+    document.getElementById('levelDesc').textContent = DESCS[level];
+    newProblem();
+  });
+});
+
+document.getElementById('colorBtn').addEventListener('click',()=>{
+  hl=!hl;
+  renderExpr();
+});
+
+document.getElementById('onesBtn').addEventListener('click',()=>{
+  showOnes=!showOnes;
+  const btn=document.getElementById('onesBtn');
+  btn.classList.toggle('active', showOnes);
+  btn.textContent = showOnes ? '1️⃣ Dölj ettorna' : '1️⃣ Visa osynliga ettor';
+  renderExpr();
+});
+
+document.getElementById('distBtn').addEventListener('click',()=>{
+  distHL=!distHL;
+  const btn=document.getElementById('distBtn');
+  btn.classList.toggle('active', distHL);
+  btn.textContent = distHL ? '🔍 Dölj ledtråd' : '🔍 Visa hur multiplikationen ser ut';
+  const panel=document.getElementById('distPanel');
+  if(distHL){ buildDistPanel(); }
+  else { panel.style.display='none'; panel.innerHTML=''; }
+});
+
+document.getElementById('checkBtn').addEventListener('click',checkAnswer);
+document.getElementById('newBtn').addEventListener('click',newProblem);
+document.getElementById('nextBtn').addEventListener('click',newProblem);
+document.getElementById('answerInput').addEventListener('keydown',e=>{ if(e.key==='Enter') checkAnswer(); });
+
+document.getElementById('showSolBtn').addEventListener('click',()=>{
+  const sp=document.getElementById('solutionPanel');
+  const sb=document.getElementById('showSolBtn');
+  if(sp.classList.contains('show')){ sp.classList.remove('show'); sb.textContent='💡 Visa lösning'; }
+  else { sp.innerHTML=buildSolution(); sp.classList.add('show'); sb.textContent='🙈 Dölj lösning'; }
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{ sR=0; sW=0; updateScore(); });
+
+let dark=false;
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  dark=!dark;
+  document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+  document.getElementById('themeBtn').textContent = dark?'☀️':'🌙';
+});
+
+document.getElementById('settingsBtn').addEventListener('click',openModal);
+document.getElementById('mCancel').addEventListener('click',closeModal);
+document.getElementById('mSave').addEventListener('click',saveModal);
+document.getElementById('overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('overlay')) closeModal();
+});
+
+document.querySelectorAll('.trow[data-lv]').forEach(r=>{
+  r.addEventListener('click',()=>{
+    const lv=parseInt(r.dataset.lv);
+    const idx=pending.activeLevels.indexOf(lv);
+    if(idx>=0&&pending.activeLevels.length===1) return;
+    if(idx>=0){ pending.activeLevels.splice(idx,1); r.classList.remove('active'); r.querySelector('.trow-check').textContent=''; }
+    else { pending.activeLevels.push(lv); pending.activeLevels.sort(); r.classList.add('active'); r.querySelector('.trow-check').textContent='✓'; }
+  });
+});
+
+document.getElementById('coeffRange').addEventListener('input',e=>{
+  const v=parseInt(e.target.value);
+  document.getElementById('coeffVal').textContent=v;
+  if(pending) pending.maxCoeff=v;
+});
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+document.getElementById('levelDesc').textContent = DESCS[1];
+newProblem();
+</script>
+</body>
+</html>
